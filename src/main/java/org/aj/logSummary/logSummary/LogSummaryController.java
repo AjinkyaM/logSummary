@@ -13,6 +13,7 @@ import java.util.zip.GZIPInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,13 +34,21 @@ public class LogSummaryController {
 	public static final int NUM_FIELDS = 9;
 
 	private static final Logger logger = LoggerFactory.getLogger(LogSummaryController.class);
-
-	String user = "xornet";
-	String password = "corporateplan2014!@#";
-	String host = "10.21.0.228";
-	int port = 22;
-
-	String remoteFile = "/var/log/nginx/access.log.2.gz";
+    
+	@Value("${user-name}")
+	private String user;
+	
+	@Value("${user-password}")
+	private String password;
+	
+	@Value("${host}")
+	private String host;
+	
+	private int port = 22;
+	
+	@Value("${file-name}")
+	private String remoteFile;
+	
 	String logEntryPattern = "^([\\d.]+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\] \"(.+?)\" (\\d{3}) (\\d+) \"([^\"]+)\" \"([^\"]+)\"";
 	Pattern p = Pattern.compile(logEntryPattern);
 
@@ -58,7 +67,7 @@ public class LogSummaryController {
 		return gson.toJson(moduleMap);
 
 	}
-
+	
 	@RequestMapping("/log-summary-browser")
 	public String logSummaryBrowser() {
 		Map<String, String> moduleMap = new HashMap<>();
@@ -85,8 +94,8 @@ public class LogSummaryController {
 				matcher = p.matcher(line);
 
 				if (!matcher.matches() || NUM_FIELDS != matcher.groupCount()) {
-					System.err.println("Bad log entry (or problem with RE?):");
-					System.err.println(line);
+					logger.error("Bad log entry (or problem with RE?):");
+					logger.error(line);
 					continue;
 				}
 
@@ -135,8 +144,8 @@ public class LogSummaryController {
 				matcher = p.matcher(line);
 
 				if (!matcher.matches() || NUM_FIELDS != matcher.groupCount()) {
-					System.err.println("Bad log entry (or problem with RE?):");
-					System.err.println(line);
+					logger.error("Bad log entry (or problem with RE?):");
+					logger.error(line);
 					continue;
 				}
 
@@ -164,13 +173,13 @@ public class LogSummaryController {
 			Session session = jsch.getSession(user, host, port);
 			session.setPassword(password);
 			session.setConfig("StrictHostKeyChecking", "no");
-			System.out.println("Establishing Connection...");
+			logger.info("Establishing Connection...");
 			session.connect();
-			System.out.println("Connection established.");
-			System.out.println("Creating SFTP Channel.");
+			logger.info("Connection established.");
+			logger.info("Creating SFTP Channel.");
 			ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
 			sftpChannel.connect();
-			System.out.println("SFTP Channel created.");
+			logger.info("SFTP Channel created.");
 			InputStream fis = null;
 			fis = sftpChannel.get(remoteFile);
 
@@ -179,7 +188,7 @@ public class LogSummaryController {
 			return new BufferedReader(new InputStreamReader(gzip));
 
 		} catch (JSchException | SftpException | IOException e) {
-			System.out.println(e);
+			logger.error(e.getMessage());
 		}
 
 		return null;
